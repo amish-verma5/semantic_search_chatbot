@@ -258,7 +258,7 @@ Hint:
     return bot_response
 
 # print(gensecond_semantic("What is the wavelength used in MgO thin films deposition"))
-def chatbot_(user_input):
+def chatbot_(user_input:str):
     print(":hhij")
     logger.info("Begin Loading things")
     r=gensecond_semantic(user_input)
