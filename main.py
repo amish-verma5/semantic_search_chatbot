@@ -18,6 +18,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+import tomllib
+
+with open("config.toml", "rb") as f:
+    config = tomllib.load(f)
 
 waiting_messages = [
     "Evaporating irrelevant data — condensing only what matters...",
@@ -52,10 +56,10 @@ waiting_messages = [
 class SemanticRAG:
     def __init__(self):
         genai.configure(api_key=os.getenv('gemini_api_key1'))  # This just configures the module
-        self.model = genai.GenerativeModel("models/gemini-1.5-flash")
+        self.model = genai.GenerativeModel(config["models"]["gemini_model"])
         self.pc = Pinecone(api_key=os.getenv('pinecone_api_key'))
-        self.index = self.pc.Index("quickstart")
-        self.model_emb = SentenceTransformer("nomic-ai/modernbert-embed-base")
+        self.index = self.pc.Index(config["pinecone"]["index_name"])
+        self.model_emb = SentenceTransformer(config["models"]["embedding_model"])
 
     def generate_embeddings(self, text):
         if isinstance(text, str):
