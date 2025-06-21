@@ -14,12 +14,15 @@ app.add_middleware(
 
 
 class Query(BaseModel):
-    query: str
+    user_query: str
+    k:int
 
 @app.post("/chat")
 async def chat(query: Query):
-    user_query = query.query
+    user_query = query.user_query
+    k=query.k
     print("printing querry")
     print(user_query)
-    reply =chatbot_(user_query)
+    print(f"the value of k i s:{k}")
+    reply =chatbot_(user_query,k)
     return {"reply": reply}

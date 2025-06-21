@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 api_keys = [
     os.getenv('gemini_api_key1'),
     os.getenv('gemini_api_key2'),
-    os.getenv('gemini_api_key3'),
+    # os.getenv('gemini_api_key3'),
     os.getenv('gemini_api_key4'),
     os.getenv('gemini_api_key5'),
     os.getenv('gemini_api_key6')
@@ -49,17 +49,17 @@ index_name = "quickstart"
 index = pc.Index(index_name)
 
 
-def semantic_search2(query, k=10):
+def semantic_search2(query, k):
     ans=[]
     query_e=generate_embeddings(query)
-    try:
-        # k=int(input("Number of top k paragraphs you want (out of 30): "))
-        k=10
-    except:
-        print("Non valid value, k = 10 for results.")
-        k=10
+    # try:
+    #     # k=int(input("Number of top k paragraphs you want (out of 30): "))
+    #     k=10
+    # except:
+    #     print("Non valid value, k = 10 for results.")
+    #     k=10
     # print("\n")
-    print("Your chosen k is: ", k)
+    # print("Your chosen k is: ", k)
     results = index.query(
         vector=query_e.tolist(),
         top_k=k,
@@ -69,13 +69,13 @@ def semantic_search2(query, k=10):
     for match in results.matches:
         ans.append(match["metadata"]["text"])
     ans = list(set(ans))
-
+    logger.info("Search for text done")
     return ans
 
 
 
 
-logger.info("semantic search")
+# logger.info("semantic search")
 def genfirst(query, summ):
     prompt = f"""
 You are given query. Find the most appropriate one or multiple paragraphs.
@@ -106,6 +106,7 @@ Query: {query}
                 time.sleep(3)
 
     r=r.text
+    logger.info("hint created in genfirst")
     return r
 
 
@@ -141,7 +142,7 @@ waiting_messages = [
 
 
 def querygen(query):
-    logger.info("genfirst querrygen")
+    # logger.info("genfirst querrygen")
 
     prompt=f"""
     You are given a query. Return only the parameters in quotes.
@@ -165,15 +166,15 @@ def querygen(query):
                 time.sleep(3)
 
     r=r.text
-
+    logger.info("querry generated")
     return r
 
 
-def summarizer(query):
-    print("You're into semantic search 🔎...")
+def summarizer(query,k):
+    # print("You're into semantic search 🔎...")
     q=querygen(query)
-    sim = semantic_search2(q)
-    print("Analysing the retrieved paragraphs 🕵🏻...")
+    sim = semantic_search2(q,k)
+    # print("Analysing the retrieved paragraphs 🕵🏻...")
     # print("...")
     
     summ = []
@@ -198,16 +199,15 @@ def summarizer(query):
                 retries -= 1
                 if retries > 0:
                     time.sleep(3)
-                
+    logger.info("summarised paras in 2 lines")         
     return summ
 
-def gensecond_semantic(query):
-    logger.info("gensecond semantic funciton called")
-    logger.info("Thank you, We got your query✅...")
+def gensecond_semantic(query,k):
+    # logger.info("gensecond semantic funciton called")
+    # logger.info("Thank you, We got your query✅...")
     # print("...")
-
     
-    summ = summarizer(query)
+    summ = summarizer(query,k)
 
     # print(summ)
 
@@ -218,7 +218,7 @@ def gensecond_semantic(query):
     r1 = genfirst(query, summ)
 
     # print(r1)
-    print("Generating your answer✍🏻...")
+    # print("Generating your answer✍🏻...")
 
     
     
@@ -254,15 +254,16 @@ Hint:
     
     bot_response = r.text
     # print(r.text)
-
+    logger.info("final result generated")
     return bot_response
 
-# print(gensecond_semantic("What is the wavelength used in MgO thin films deposition"))
-def chatbot_(user_input:str):
-    print(":hhij")
-    logger.info("Begin Loading things")
-    r=gensecond_semantic(user_input)
+# print(gensecond_semantic("What is the wavelength used in MgO thin films deposition",5))
+def chatbot_(user_input:str,k:int):
+    # print(":hhij")
+    logger.info("Received your Querry")
+    r=gensecond_semantic(user_input,k)
+    print(r)
     return r
     # print("Bot said 🤖: ", r)
-
+# chatbot_("What is the wavelength used in MgO thin films deposition",5)
 logger.info("summariser gensecond chatbot")

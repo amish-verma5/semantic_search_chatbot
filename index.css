@@ -21,6 +21,29 @@ body{
 }
 #header{
     display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+#decidek{
+    background-color: blue;
+    margin-right: 2px;
+}
+#place_number{
+    background-color: aqua;
+    padding: 3px;
+    border-radius: 10px;
+    width: 50%;
+}
+#kfactor{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: left;
+    width: 30%;
+}
+#heading{
+    display: flex;
     align-items: center;
     border-radius: 10px 10px 0px 0px;
     /* background-color: rgb(255, 254, 254); */
@@ -29,6 +52,7 @@ body{
     font-size: 25px;
     font-weight: bold;
     color: rgb(0, 0, 0);
+    width: 30%;
 }
 #body{
     /* background-color: aqua; */

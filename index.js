@@ -2,7 +2,28 @@ let queryEl = document.getElementById("text-box")
 let responseEl = document.getElementById("inside_text")
 let bodyEl = document.getElementById("body")
 let genButton = document.getElementById("gen-button")
+const input = document.getElementById('place_number');
 
+input.addEventListener('input', () => {
+  let value = parseInt(input.value, 10);
+  const max_val = parseInt(input.max, 10);
+  const min_val = parseInt(input.min, 10);
+
+  if (isNaN(value)) return;
+
+  if (value > max_val) input.value = max_val;
+  if (value < min_val) input.value = min_val;
+});
+
+input.addEventListener('keydown', (e) => {
+  // Allow navigation keys
+  if (["Backspace", "ArrowLeft", "ArrowRight", "Delete", "Tab", "Enter"].includes(e.key)) return;
+
+  // Block non-digit keys
+  if (!/^\d$/.test(e.key)) {
+    e.preventDefault();
+  }
+});
 queryEl.addEventListener("keydown",
     function (event) {
         if (event.key == "Enter" && !event.shiftKey) {
@@ -41,12 +62,12 @@ function generateResponse() {
             ans.textContent = "Our wizard is casting the ‘load’ spell… please hold your applause.";
         }, 5000);
         setTimeout(() => {
-            sendQ(ans,ques); // Call backend after all steps
+            sendQ(ans,ques,input.value); // Call backend after all steps
         }, 5000);
     }
 }
 
-function sendQ(ans,ques) {
+function sendQ(ans,ques,k) {
     let query = ques;
 
     fetch('http://127.0.0.1:8000/chat', {
@@ -54,7 +75,7 @@ function sendQ(ans,ques) {
         headers: {
             'Content-Type': 'application/json'  // ✅ Needed for FastAPI to parse JSON
         },
-        body: JSON.stringify({ query: query })
+        body: JSON.stringify({ user_query: query, k:k })
     })
     .then(response => response.json())
     .then(data => {
