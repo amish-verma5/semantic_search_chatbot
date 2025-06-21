@@ -10,105 +10,13 @@ import google.generativeai as genai
 import os
 import random
 import logging
+
+logging.basicConfig(
+    level=logging.INFO,  # Show INFO and higher
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 logger = logging.getLogger(__name__)
-
-api_keys = [
-    os.getenv('gemini_api_key1'),
-    os.getenv('gemini_api_key2'),
-    # os.getenv('gemini_api_key3'),
-    os.getenv('gemini_api_key4'),
-    os.getenv('gemini_api_key5'),
-    os.getenv('gemini_api_key6')
-]
-# print(2)
-def get_random_model():
-    api_key = random.choice(api_keys)
-
-    genai.configure(api_key=api_key)
-
-    return genai.GenerativeModel("models/gemini-1.5-flash")
-
-
-model_emb = SentenceTransformer("nomic-ai/modernbert-embed-base")
-
-def generate_embeddings(text):
-    if isinstance(text, str):
-        texts = [text]
-    else:
-        texts = text
-
-    em = model_emb.encode(texts, reference_compile=False)
-    
-    if isinstance(text, str):
-        return em[0]
-    
-    
-logger.info("get_random_model generate_embeddings ")
-pc = Pinecone(api_key="pcsk_6NTZFz_EWFY2uBqSe526iNNgyon6QTyuV2ibyZp7iiQyvg8zkDuP5SZ7pxWAiQT8xj1H49")
-index_name = "quickstart"
-index = pc.Index(index_name)
-
-
-def semantic_search2(query, k):
-    ans=[]
-    query_e=generate_embeddings(query)
-    # try:
-    #     # k=int(input("Number of top k paragraphs you want (out of 30): "))
-    #     k=10
-    # except:
-    #     print("Non valid value, k = 10 for results.")
-    #     k=10
-    # print("\n")
-    # print("Your chosen k is: ", k)
-    results = index.query(
-        vector=query_e.tolist(),
-        top_k=k,
-        include_metadata=True
-    )
-    
-    for match in results.matches:
-        ans.append(match["metadata"]["text"])
-    ans = list(set(ans))
-    logger.info("Search for text done")
-    return ans
-
-
-
-
-# logger.info("semantic search")
-def genfirst(query, summ):
-    prompt = f"""
-You are given query. Find the most appropriate one or multiple paragraphs.
-Also tell a little about each paragraph by explicitly mentioning the asked parameter in query.
-
-Query: {query}
-
-
-"""
-    # print("Summarized paras: ")
-    # print(summ)
-
-    for i, para in enumerate(summ, 1):
-        prompt += f"Paragraph {i}: {para}\n"
-    # r=ollama(prompt)
-    retries = 3 
-    success = False
-    
-    while retries > 0 and not success:
-        try:
-            model = get_random_model()
-            r = model.generate_content(prompt)
-            success = True
-            
-        except Exception as e:
-            retries -= 1
-            if retries > 0:
-                time.sleep(3)
-
-    r=r.text
-    logger.info("hint created in genfirst")
-    return r
-
 
 
 waiting_messages = [
@@ -141,129 +49,196 @@ waiting_messages = [
 
 
 
-def querygen(query):
-    # logger.info("genfirst querrygen")
+class SemanticRAG:
+    def __init__(self):
+        genai.configure(api_key=os.getenv('gemini_api_key1'))  # This just configures the module
+        self.model = genai.GenerativeModel("models/gemini-1.5-flash")
+        self.pc = Pinecone(api_key=os.getenv('pinecone_api_key'))
+        self.index = self.pc.Index("quickstart")
+        self.model_emb = SentenceTransformer("nomic-ai/modernbert-embed-base")
 
-    prompt=f"""
-    You are given a query. Return only the parameters in quotes.
-    Return the answer in inverted comma.
-    Example: "What is temperature of X thin films over KrF laser" then return "temperature X thin films KrF laser"
+    def generate_embeddings(self, text):
+        if isinstance(text, str):
+            texts = [text]
+        else:
+            texts = text
 
-    Query: {query}
-
-    """
-    retries = 3 
-    success = False
-    while retries > 0 and not success:
-        try:
-            model = get_random_model()
-            r = model.generate_content(prompt)
-            success = True
-        except Exception as e:
-            print(e)
-            retries -= 1
-            if retries > 0:
-                time.sleep(3)
-
-    r=r.text
-    logger.info("querry generated")
-    return r
+        em = self.model_emb.encode(texts, reference_compile=False)
+        
+        if isinstance(text, str):
+            return em[0]
 
 
-def summarizer(query,k):
-    # print("You're into semantic search 🔎...")
-    q=querygen(query)
-    sim = semantic_search2(q,k)
-    # print("Analysing the retrieved paragraphs 🕵🏻...")
-    # print("...")
-    
-    summ = []
-    for para in sim:
+    def semantic_search2(self, query, k):
+        ans=[]
+        query_e=self.generate_embeddings(query)
+        results = self.index.query(
+            vector=query_e.tolist(),
+            top_k=k,
+            include_metadata=True
+        )
+        
+        for match in results.matches:
+            ans.append(match["metadata"]["text"])
+        ans = list(set(ans))
+        logger.info("Search for text done")
+        return ans
+
+
+    def genfirst(self, query, summ):
+        logger.info("genfirst initiated")
+        prompt = f"""
+            You are given query. Find the most appropriate one or multiple paragraphs.
+            Also tell a little about each paragraph by explicitly mentioning the asked parameter in query.
+
+            Query: {query}
+
+
+        """
+
+        for i, para in enumerate(summ, 1):
+            prompt += f"Paragraph {i}: {para}\n"
 
         retries = 3 
         success = False
-
+        r=None
         while retries > 0 and not success:
             try:
-                model = get_random_model()
-                response = model.generate_content(f"""
-                                                  Summarize the given text in only two lines (30 words).
-                                                  Do not lose any information about parameters and materials, like temperature, wavelength, pressure, material name, substrate name, etc.
-                                                  
-                                                  Text:
-                                                  {para}
-""")
-                summ.append(response.text)
+                model = self.model
+                r = model.generate_content(prompt)
                 success = True
+                
             except Exception as e:
                 retries -= 1
                 if retries > 0:
                     time.sleep(3)
-    logger.info("summarised paras in 2 lines")         
-    return summ
 
-def gensecond_semantic(query,k):
-    # logger.info("gensecond semantic funciton called")
-    # logger.info("Thank you, We got your query✅...")
-    # print("...")
-    
-    summ = summarizer(query,k)
-
-    # print(summ)
-
-    random_message = random.choice(waiting_messages)
-    print(random_message)
-    # print("...")
-
-    r1 = genfirst(query, summ)
-
-    # print(r1)
-    # print("Generating your answer✍🏻...")
-
-    
-    
-    prompt = f"""
-You have a query and the hint to the query about PLD (Pulsed Laser Deposition).
-
-1. Present to me it like you didn't get any hint and you're speaking it using your data. DON'T MENTION ANYTHING ABOUT PARAGRAPHS EXPLICITLY.
-2. Present every information. Dont miss anything, you have to present it in 30 to 150 words maximum, unless query asks to make it bigger.
-
-Query: 
-{query}
+        r=r.text
+        logger.info("hint created in genfirst")
+        return r
 
 
-Hint: 
-{r1}
+    def querygen(self, query):
+        logger.info("querrygen initiated")
 
-"""
+        prompt=f"""
+        You are given a query. Return only the parameters in quotes.
+        Return the answer in inverted comma.
+        Example: "What is temperature of X thin films over KrF laser" then return "temperature X thin films KrF laser"
 
-    print("--" * 60)
-    retries = 3 
-    success = False
-    
-    while retries > 0 and not success:
-        try:
-            model = get_random_model()
-            r = model.generate_content(prompt)
-            success = True
-            
-        except Exception as e:
-            retries -= 1
-            if retries > 0:
-                time.sleep(3)
-    
-    bot_response = r.text
-    # print(r.text)
-    logger.info("final result generated")
-    return bot_response
+        Query: {query}
+
+        """
+        retries = 3 
+        success = False
+        while retries > 0 and not success:
+            try:
+                model = self.model
+                r = model.generate_content(prompt)
+                success = True
+            except Exception as e:
+                print(e)
+                retries -= 1
+                if retries > 0:
+                    time.sleep(3)
+
+        r=r.text
+        logger.info("querry generated returned")
+        return r
+
+
+    def summarizer(self, query:str, k: int):
+        # print("You're into semantic search 🔎...")
+        logger.info("summaarizer function intiated")
+        q=self.querygen(query)
+        sim = self.semantic_search2(q,k)
+        # print("Analysing the retrieved paragraphs 🕵🏻...")
+        # print("...")
+        
+        summ = []
+        for para in sim:
+
+            retries = 3 
+            success = False
+
+            while retries > 0 and not success:
+                try:
+                    model = self.model
+                    response = model.generate_content(f"""
+                        Summarize the given text in only two lines (30 words).
+                        Do not lose any information about parameters and materials, like temperature, wavelength, pressure, material name, substrate name, etc.
+                        
+                        Text:
+                        {para}
+                    """)
+
+                    summ.append(response.text)
+                    success = True
+                except Exception as e:
+                    retries -= 1
+                    if retries > 0:
+                        time.sleep(3)
+        logger.info("summarised paras in 2 lines")         
+        return summ
+
+    def gensecond_semantic(self, query:str, k: int):
+        logger.info("gensecond semantic funciton called")
+        # logger.info("Thank you, We got your query✅...")
+        # print("...")
+        
+        summ = self.summarizer(query, k)
+
+        # print(summ)
+
+        random_message = random.choice(waiting_messages)
+        print(random_message)
+        # print("...")
+
+        r1 = self.genfirst(query, summ)
+
+        # print(r1)
+        # print("Generating your answer✍🏻...")
+
+        
+        
+        prompt = f"""
+            You have a query and the hint to the query about PLD (Pulsed Laser Deposition).
+            1. Present to me it like you didn't get any hint and you're speaking it using your data. DON'T MENTION ANYTHING ABOUT PARAGRAPHS EXPLICITLY.
+            2. Present every information. Dont miss anything, you have to present it in 30 to 150 words maximum, unless query asks to make it bigger.
+            Query: 
+            {query}
+            Hint: 
+            {r1}
+
+        """
+
+        print("--" * 60)
+        retries = 3 
+        success = False
+        r=None
+        while retries > 0 and not success:
+            try:
+                model = self.model
+                r = model.generate_content(prompt)
+                success = True
+                
+            except Exception as e:
+                retries -= 1
+                if retries > 0:
+                    time.sleep(3)
+        
+        bot_response = r.text
+        # print(r.text)
+        logger.info("final result generated")
+        return bot_response
 
 # print(gensecond_semantic("What is the wavelength used in MgO thin films deposition",5))
-def chatbot_(user_input:str,k:int):
-    # print(":hhij")
-    logger.info("Received your Querry")
-    r=gensecond_semantic(user_input,k)
-    print(r)
-    return r
-    # print("Bot said 🤖: ", r)
-# chatbot_("What is the wavelength used in MgO thin films deposition",5)
-logger.info("summariser gensecond chatbot")
+    def chatbot_(self, user_input:str, k:int):
+        
+        logger.info("Received user Querry")
+        r=self.gensecond_semantic(user_input, k)
+        print(r)
+        return r
+        # print("Bot said 🤖: ", r)
+    # chatbot_("What is the wavelength used in MgO thin films deposition",5)
+    logger.info("summariser gensecond chatbot")

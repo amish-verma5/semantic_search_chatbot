@@ -2,7 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 # from main import result
-from semanticonly_7 import chatbot_
+from semanticonly_7 import SemanticRAG
+import logging
+logging.basicConfig(
+    level=logging.INFO,  
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 app=FastAPI()
 app.add_middleware(
@@ -20,9 +26,11 @@ class Query(BaseModel):
 @app.post("/chat")
 async def chat(query: Query):
     user_query = query.user_query
-    k=query.k
-    print("printing querry")
-    print(user_query)
-    print(f"the value of k i s:{k}")
-    reply =chatbot_(user_query,k)
+    k = query.k
+    logger.info("Parameter received")
+    logger.info(f"User querry: {user_query}")
+    logger.info(f"Value of k is: {k}")
+
+    semantic_rag = SemanticRAG()
+    reply = semantic_rag.chatbot_(user_query,k)
     return {"reply": reply}
