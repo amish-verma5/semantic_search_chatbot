@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 # from main import result
-from semanticonly_7 import SemanticRAG
+from main import SemanticRAG
 import logging
 logging.basicConfig(
     level=logging.INFO,  
