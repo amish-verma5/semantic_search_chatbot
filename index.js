@@ -36,6 +36,11 @@ document.addEventListener("DOMContentLoaded", function () {
             queryEl.value = "";
             bodyEl.appendChild(query);
 
+            // let image = document.createElement("img");
+            // image.src = "colin-watts-Wr0vLdN3roE-unsplash.jpg";
+            // image.className="image_gen"
+            // bodyEl.appendChild(image)
+            
             let ans = document.createElement("p");
             ans.className = "bot-text";
             ans.textContent = "Working over your query ✅...";
